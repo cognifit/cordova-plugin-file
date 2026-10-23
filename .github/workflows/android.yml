@@ -18,17 +18,27 @@
 name: Android Testsuite
 
 on:
+  workflow_dispatch:
   push:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.eslint*'
-
+    paths:
+      - 'src/android/**'
+      - 'www/**'
+      - 'tests/tests.js'
+      - 'tests/plugin.xml'
+      - 'tests/www/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tests/src/android/**'
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.eslint*'
+    paths:
+      - 'src/android/**'
+      - 'www/**'
+      - 'tests/tests.js'
+      - 'tests/plugin.xml'
+      - 'tests/www/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tests/src/android/**'
 
 jobs:
   test:
