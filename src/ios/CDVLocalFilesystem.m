@@ -19,8 +19,12 @@
 
 #import "CDVFile.h"
 #import "CDVLocalFilesystem.h"
+#if __has_include(<Cordova/Cordova.h>)
+#import <Cordova/Cordova.h>
+#else
 #import <Cordova/CDV.h>
-#import <MobileCoreServices/MobileCoreServices.h>
+#endif
+#import "CDVFileType.h"
 #import <sys/xattr.h>
 
 @implementation CDVLocalFilesystem
@@ -122,10 +126,17 @@
     return [self filesystemPathForFullPath:url.fullPath];
 }
 
+/**
+ * CDVLocalFilesystem represents any registered local filesystem, such as
+ * temporary, persistent, documents, or bundle storage. Its public URL form is
+ * a cdvfile URI containing the filesystem name and the relative path.
+ * Escape the path before adding the cdvfile URI scheme and authority; the path
+ * must be encoded separately because it does not contain the URI scheme.
+ */
 - (CDVFilesystemURL *)URLforFullPath:(NSString *)fullPath
 {
     if (fullPath) {
-        NSString* escapedPath = [fullPath stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        NSString* escapedPath = [fullPath stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]];
         if ([fullPath hasPrefix:@"/"]) {
             return [CDVFilesystemURL fileSystemURLWithString:[NSString stringWithFormat:@"%@://localhost/%@%@", kCDVFilesystemURLPrefix, self.name, escapedPath]];
         }
@@ -288,7 +299,7 @@
     id iCloudBackupExtendedAttributeValue = [options objectForKey:iCloudBackupExtendedAttributeKey];
 
     if ((iCloudBackupExtendedAttributeValue != nil) && [iCloudBackupExtendedAttributeValue isKindOfClass:[NSNumber class]]) {
-        if (IsAtLeastiOSVersion(@"5.1")) {
+        if (@available(iOS 5.1, *)) {
             NSURL* url = [NSURL fileURLWithPath:filePath];
             NSError* __autoreleasing error = nil;
 
@@ -645,12 +656,12 @@
     NSString* mimeType = nil;
 
     if (fullPath) {
-        CFStringRef typeId = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)[fullPath pathExtension], NULL);
+        NSString *typeId = CDVFileTypeIdentifierForExtension([fullPath pathExtension]);
         if (typeId) {
-            mimeType = (__bridge_transfer NSString*)UTTypeCopyPreferredTagWithClass(typeId, kUTTagClassMIMEType);
+            mimeType = CDVFileMIMETypeForIdentifier(typeId);
             if (!mimeType) {
                 // special case for m4a
-                if ([(__bridge NSString*)typeId rangeOfString : @"m4a-audio"].location != NSNotFound) {
+                if ([typeId rangeOfString : @"m4a-audio"].location != NSNotFound) {
                     mimeType = @"audio/mp4";
                 } else if ([[fullPath pathExtension] rangeOfString:@"wav"].location != NSNotFound) {
                     mimeType = @"audio/wav";
@@ -658,7 +669,6 @@
                     mimeType = @"text/css";
                 }
             }
-            CFRelease(typeId);
         }
     }
     return mimeType;
@@ -737,14 +747,13 @@
         return nil;
     }
     
-    CFStringRef UTI = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)[path pathExtension], NULL);
-    CFStringRef mimeType = UTTypeCopyPreferredTagWithClass (UTI, kUTTagClassMIMEType);
-    CFRelease(UTI);
+    NSString *UTI = CDVFileTypeIdentifierForExtension([path pathExtension]);
+    NSString *mimeType = CDVFileMIMETypeForIdentifier(UTI);
     
     if (!mimeType) {
         return @"application/octet-stream";
     }
-    return (__bridge NSString *)mimeType;
+    return mimeType;
 }
 
 @end

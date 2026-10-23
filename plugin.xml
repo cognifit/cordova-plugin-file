@@ -175,11 +175,10 @@ to config.xml in order for the application to find previously stored files.
             </feature>
         </config-file>
         <header-file src="src/ios/CDVFile.h" />
+        <header-file src="src/ios/CDVFileType.h" />
         <source-file src="src/ios/CDVFile.m" />
         <header-file src="src/ios/CDVLocalFilesystem.h" />
         <source-file src="src/ios/CDVLocalFilesystem.m" />
-        <header-file src="src/ios/CDVAssetLibraryFilesystem.h" />
-        <source-file src="src/ios/CDVAssetLibraryFilesystem.m" />
 
         <!-- ios specific file apis -->
         <js-module src="www/ios/Entry.js" name="iosEntry">
@@ -198,8 +197,8 @@ to config.xml in order for the application to find previously stored files.
             <runs/>
         </js-module>
 
-        <framework src="AssetsLibrary.framework" />
         <framework src="MobileCoreServices.framework" />
+        <framework src="UniformTypeIdentifiers.framework" weak="true" />
 
         <resource-file src="src/ios/CDVFile.bundle" target="CDVFile.bundle" />
     </platform>

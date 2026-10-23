@@ -18,16 +18,25 @@
 name: Chrome Testsuite
 
 on:
+  workflow_dispatch:
   push:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.eslint*'
+    paths:
+      - 'src/browser/**'
+      - 'www/**'
+      - 'tests/tests.js'
+      - 'tests/plugin.xml'
+      - 'tests/www/**'
+      - 'package.json'
+      - 'package-lock.json'
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.eslint*'
+    paths:
+      - 'src/browser/**'
+      - 'www/**'
+      - 'tests/tests.js'
+      - 'tests/plugin.xml'
+      - 'tests/www/**'
+      - 'package.json'
+      - 'package-lock.json'
 
 jobs:
   test:

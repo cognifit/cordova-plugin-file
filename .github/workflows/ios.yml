@@ -15,83 +15,57 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: iOS Testsuite
+name: iOS warning checks
 
 on:
-  push:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.eslint*'
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.eslint*'
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  test:
-    name: iOS ${{ matrix.versions.ios-version }} Test
-    runs-on: ${{ matrix.versions.os-version }}
-    continue-on-error: true
-
-    # hoist configurations to top that are expected to be updated
-    env:
-      # Storing a copy of the repo
-      repo: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-
-      node-version: 20
-
-      # > Starting April 26, 2021, all iOS and iPadOS apps submitted to the App Store must be built with Xcode 12 and the iOS 14 SDK.
-      # Because of Apple's requirement, listed above, We will only be using the latest Xcode release for testing.
-      # To customize these options, add "xcode-version" to the strategy matrix with its overriding value.
-      default_xcode-version: latest-stable
-
-    strategy:
-      matrix:
-        versions:
-          - os-version: macos-12
-            ios-version: 15.x
-            xcode-version: 13.x
-
-          - os-version: macos-14
-            ios-version: 16.x
-            xcode-version: 14.x
-
-          - os-version: macos-14
-            ios-version: 17.x
-            xcode-version: 15.x
-
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.node-version }}
-      - uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd
-        env:
-          xcode-version: ${{ matrix.versions.xcode-version == '' && env.default_xcode-version || matrix.versions.xcode-version }}
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+
+  native:
+    name: Native checks (Cordova iOS ${{ matrix.cordova }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        cordova: ['6.2.0', '7.1.1', '8.0.1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          xcode-version: ${{ env.xcode-version }}
-
-      - name: Run Environment Information
-        run: |
-          node --version
-          npm --version
-          xcodebuild -version
-
-      - name: Run npm install
-        run: |
-          npm i -g cordova@latest ios-deploy@latest
-          npm ci
-
-      - name: Run paramedic install
-        if: ${{ endswith(env.repo, '/cordova-paramedic') != true }}
-        run: npm i -g github:apache/cordova-paramedic
-
-      - name: Run paramedic tests
+          node-version: 22
+      - name: Select Xcode 26.3
+        run: sudo xcode-select --switch /Applications/Xcode_26.3.app
+      - name: Install released Cordova headers
         env:
-          test_config: 'ios-${{ matrix.versions.ios-version }}.config.json'
-          # Generally, this should automatically work for cordova-paramedic & plugins. If the path is unique, this can be manually changed.
-          test_plugin_path: ${{ endswith(env.repo, '/cordova-paramedic') && './spec/testable-plugin/' || './' }}
-          paramedic: ${{ endswith(env.repo, '/cordova-paramedic') && 'node main.js' || 'cordova-paramedic' }}
-        run: ${{ env.paramedic }} --config ./pr/local/${{ env.test_config }} --plugin ${{ env.test_plugin_path }}
+          CORDOVA_VERSION: ${{ matrix.cordova }}
+        run: |
+          npm install --prefix "$RUNNER_TEMP/cordova" --ignore-scripts --no-audit --no-fund "cordova-ios@$CORDOVA_VERSION"
+          cordova_root="$RUNNER_TEMP/cordova/node_modules/cordova-ios"
+          if [ -d "$cordova_root/CordovaLib/include" ]; then
+            echo "CORDOVA_HEADERS=$cordova_root/CordovaLib/include" >> "$GITHUB_ENV"
+          else
+            mkdir -p "$RUNNER_TEMP/cordova-headers"
+            ln -s "$cordova_root/CordovaLib/Classes/Public" "$RUNNER_TEMP/cordova-headers/Cordova"
+            echo "CORDOVA_HEADERS=$RUNNER_TEMP/cordova-headers" >> "$GITHUB_ENV"
+          fi
+      - name: Compile iOS 11, 17 and 26 with warnings as errors
+        run: sh tests/ios-warning-compile.sh
+      - name: Run native behavior regressions
+        run: python3 tests/ios-warning-regressions.py

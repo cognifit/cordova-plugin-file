@@ -144,6 +144,13 @@ the `cordova.file.*` properties map to physical paths on a real device.
      necessary, but do not rely on this. You should clear this directory as
      appropriate for your application.
 
+#### iOS photo-library URLs in the CogniFit fork
+
+This fork removes the legacy AssetsLibrary filesystem. Native `assets-library://...`
+URLs and the `cdvfile://localhost/assets-library/...` root are unsupported on all
+iOS deployment targets. Regular app-storage files continue to work. Photo access
+requires a separate Photos integration; this plugin does not provide one.
+
 ### Android File System Layout
 
 | Device Path                                     | `cordova.file.*`            | `AndroidExtraFileSystems` | r/w? | persistent? | OS clears | private |
